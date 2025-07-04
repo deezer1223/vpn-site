@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="tk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost VPN | SS Kody</title>
+    <style>
+        :root {
+            --neon-green: #0f0;
+            --dark-bg: #000;
+            --code-bg: #111;
+            --alert-bg: rgba(0, 255, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            background-color: var(--dark-bg);
+            color: var(--neon-green);
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+        
+        /* Matrix rain effect */
+        #matrix {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+        
+        /* Banner */
+        .banner {
+            width: 100%;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid var(--neon-green);
+            margin-bottom: 2rem;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            background: rgba(0, 20, 0, 0.3);
+        }
+        
+        /* Header styles */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+        }
+        
+        .title {
+            font-size: 3.5rem;
+            text-shadow: 0 0 10px var(--neon-green);
+            margin-bottom: 1rem;
+            letter-spacing: 0.5rem;
+            position: relative;
+            display: inline-block;
+        }
+        
+        .title::after {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 3px;
+            background: var(--neon-green);
+            bottom: -10px;
+            left: 0;
+            box-shadow: 0 0 10px var(--neon-green);
+            animation: blink 1.5s infinite step-end;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        /* Main container */
+        .container {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            flex: 1;
+        }
+        
+        /* Code display */
+        .code-box {
+            background: var(--code-bg);
+            border: 1px solid var(--neon-green);
+            padding: 2rem;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .code-content {
+            font-size: 1.2rem;
+            word-break: break-all;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px dashed var(--neon-green);
+        }
+        
+        /* Buttons */
+        .btn {
+            background: transparent;
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 0.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+        }
+        
+        .btn::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.4), transparent);
+            transition: 0.5s;
+        }
+        
+        .btn:hover {
+            background: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        /* Admin panel */
+        .admin-panel {
+            display: none;
+            background: rgba(0, 15, 0, 0.3);
+            border: 1px solid var(--neon-green);
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+        
+        .admin-panel h3 {
+            margin-bottom: 1rem;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+        
+        .admin-input {
+            width: 100%;
+            background: var(--code-bg);
+            color: var(--neon-green);
+            border: 1px solid var(--neon-green);
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Alert */
+        .alert {
+            background: var(--alert-bg);
+            border: 1px solid var(--neon-green);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        /* Footer */
+        .footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            width: 100%;
+        }
+        
+        .coder-credit {
+            margin-top: 1rem;
+            font-size: 1rem;
+        }
+        
+        .coder-credit a {
+            color: var(--neon-green);
+            text-decoration: none;
+        }
+        
+        .coder-credit a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Glitch effect */
+        .glitch {
+            position: relative;
+        }
+        
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+        }
+        
+        .glitch::before {
+            color: #0ff;
+            z-index: -1;
+            animation: glitch-effect 3s infinite;
+        }
+        
+        .glitch::after {
+            color: #f0f;
+            z-index: -2;
+            animation: glitch-effect 2s infinite reverse;
+        }
+        
+        @keyframes glitch-effect {
+            0% { transform: translate(0); }
+            20% { transform: translate(-3px, 3px); }
+            40% { transform: translate(-3px, -3px); }
+            60% { transform: translate(3px, 3px); }
+            80% { transform: translate(3px, -3px); }
+            100% { transform: translate(0); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .title {
+                font-size: 2rem;
+                letter-spacing: 0.2rem;
+            }
+            
+            .btn {
+                display: block;
+                width: 100%;
+                margin: 0.5rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Matrix rain effect canvas -->
+    <canvas id="matrix"></canvas>
+    
+    <!-- Banner -->
+    <div class="banner" id="banner">
+        ADMIN BILDIRIMI: En son güncellenmiş SS kodu paylaşıldı!
+    </div>
+    
+    <div class="header">
+        <h1 class="title glitch" data-text="GHOST VPN">GHOST VPN</h1>
+        <p>/// JÜBÜT BIR SS KODY ///</p>
+    </div>
+    
+    <div class="container">
+        <!-- Current SS Code -->
+        <div class="code-box">
+            <h3>HÄZIRKI SS KODY:</h3>
+            <div class="code-content" id="currentCode">
+                ss://YWVzLTI1Ni1nY206cGFzc3dvcmRAMTM3LjE3NC40Ni4xMzo0NDM=#GhostVPN
+            </div>
+            <button id="copyBtn" class="btn">KOPIYA AL</button>
+        </div>
+        
+        <!-- Admin Login Button (Hidden by default) -->
+        <button id="adminLoginBtn" class="btn" style="display: none;">ADMIN GIRIŞI</button>
+        
+        <!-- Admin Panel -->
+        <div class="admin-panel" id="adminPanel">
+            <h3>ADMIN PANELI</h3>
+            
+            <div class="alert" id="adminAlert"></div>
+            
+            <h4>SS KODY ÜÝTGET:</h4>
+            <input type="text" id="newSsCode" class="admin-input" placeholder="ss://...">
+            <button id="updateCodeBtn" class="btn">KODY ÜÝTGET</button>
+            
+            <h4>BANNER BILDIRIMI:</h4>
+            <input type="text" id="newBannerText" class="admin-input" placeholder="Bildirim metni...">
+            <button id="updateBannerBtn" class="btn">BANNERI ÜÝTGET</button>
+            
+            <button id="logoutBtn" class="btn">ÇYKYŞ</button>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>/// ÖZ JOGAPKÄRÇILIGIŇIZDE ULANYŇ ///</p>
+        <div class="coder-credit">
+            <span>Coder </> : <a href="https://t.me/the_ghostness" target="_blank">@Ghost</a></span>
+        </div>
+    </div>
+    
+    <script>
+        // Matrix rain effect
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+        const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const nums = '0123456789';
+        const symbols = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~';
+        
+        const alphabet = katakana + latin + nums + symbols;
+        
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        
+        const rainDrops = [];
+        
+        for (let x = 0; x < columns; x++) {
+            rainDrops[x] = 1;
+        }
+        
+        const draw = () => {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#0f0';
+            ctx.font = fontSize + 'px monospace';
+            
+            for (let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+                
+                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    rainDrops[i] = 0;
+                }
+                rainDrops[i]++;
+            }
+        };
+        
+        setInterval(draw, 30);
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+        
+        // Admin credentials (In a real app, use proper authentication)
+        const ADMIN_USERNAME = "ghost";
+        const ADMIN_PASSWORD = "vpn123";
+        
+        // DOM elements
+        const currentCode = document.getElementById('currentCode');
+        const copyBtn = document.getElementById('copyBtn');
+        const adminLoginBtn = document.getElementById('adminLoginBtn');
+        const adminPanel = document.getElementById('adminPanel');
+        const newSsCode = document.getElementById('newSsCode');
+        const updateCodeBtn = document.getElementById('updateCodeBtn');
+        const banner = document.getElementById('banner');
+        const newBannerText = document.getElementById('newBannerText');
+        const updateBannerBtn = document.getElementById('updateBannerBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const adminAlert = document.getElementById('adminAlert');
+        
+        // Check if admin is logged in (from sessionStorage)
+        function checkAdmin() {
+            const isAdmin = sessionStorage.getItem('isAdmin') === 'true';
+            if (isAdmin) {
+                adminLoginBtn.style.display = 'none';
+                adminPanel.style.display = 'block';
+            } else {
+                adminLoginBtn.style.display = 'block';
+                adminPanel.style.display = 'none';
+            }
+        }
+        
+        // Initialize
+        checkAdmin();
+        
+        // Copy to clipboard
+        copyBtn.addEventListener('click', () => {
+            const text = currentCode.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                // Visual feedback
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'KOPIYA EDILDI!';
+                
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Kopiýa etmek şowsuz. Täzeden synanyşyň.');
+            });
+        });
+        
+        // Admin login (simplified for demo)
+        adminLoginBtn.addEventListener('click', () => {
+            const username = prompt('Admin ady:');
+            const password = prompt('Admin paroly:');
+            
+            if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+                sessionStorage.setItem('isAdmin', 'true');
+                checkAdmin();
+                showAlert('Admin girişi üstünlikli!', 'success');
+            } else {
+                alert('Ýalňyş maglumat!');
+            }
+        });
+        
+        // Update SS code
+        updateCodeBtn.addEventListener('click', () => {
+            const code = newSsCode.value.trim();
+            
+            if (!code.startsWith('ss://')) {
+                showAlert('Ýalňyş SS kody formaty!', 'error');
+                return;
+            }
+            
+            currentCode.textContent = code;
+            newSsCode.value = '';
+            showAlert('SS kody üstünlikli üýtgedildi!', 'success');
+            
+            // Update banner to notify users
+            banner.textContent = `ADMIN BILDIRIMI: Täze SS kody goýuldy! (${new Date().toLocaleString()})`;
+        });
+        
+        // Update banner
+        updateBannerBtn.addEventListener('click', () => {
+            const text = newBannerText.value.trim();
+            
+            if (!text) {
+                showAlert('Bildirim boş bolmaly däl!', 'error');
+                return;
+            }
+            
+            banner.textContent = `ADMIN BILDIRIMI: ${text} (${new Date().toLocaleString()})`;
+            newBannerText.value = '';
+            showAlert('Banner üstünlikli üýtgedildi!', 'success');
+        });
+        
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            sessionStorage.removeItem('isAdmin');
+            checkAdmin();
+            showAlert('Admin çykyşy üstünlikli!', 'success');
+        });
+        
+        // Show alert in admin panel
+        function showAlert(message, type) {
+            adminAlert.textContent = message;
+            adminAlert.style.display = 'block';
+            adminAlert.style.borderColor = type === 'success' ? '#0f0' : '#f00';
+            
+            setTimeout(() => {
+                adminAlert.style.display = 'none';
+            }, 3000);
+        }
+        
+        // For demo purposes, show admin login button
+        // In production, you might want to hide this or use a secret URL
+        adminLoginBtn.style.display = 'block';
+    </script>
+</body>
+</html>
