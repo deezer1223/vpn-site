@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔐 DarkNet v4.0</title>
+    <title>🔐 DarkNet v3.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <style>
         :root {
             --bg: #111;
@@ -28,32 +29,19 @@
             margin: 10px 0;
             padding: 5px;
             border-left: 3px solid;
-            word-break: break-word;
         }
-        .message.reply {
-            border-left-color: var(--accent);
-            padding-left: 15px;
+        #loginForm {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 300px;
         }
-        .reply-info {
-            font-size: 0.8em;
-            color: #888;
-        }
-        .image-message {
-            max-width: 100%;
-            max-height: 200px;
-            margin-top: 5px;
-        }
-        #loginForm, #chatSection {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        input, button, #fileInput {
+        input, button {
             background: #222;
             color: var(--text);
             border: 1px solid var(--text);
             padding: 8px;
             font-family: 'Courier New', monospace;
-            margin: 5px 0;
         }
         button:hover {
             background: #333;
@@ -62,10 +50,6 @@
         .hidden {
             display: none;
         }
-        #typingIndicator {
-            color: #888;
-            font-style: italic;
-        }
     </style>
 </head>
 <body>
@@ -73,33 +57,24 @@
         <h1>🔒 DarkNet Giriş</h1>
         <form id="loginForm" onsubmit="return login()">
             <input type="text" id="nickname" placeholder="Nickname" required>
-            <button type="submit">Giriş Yap</button>
+            <input type="password" id="password" placeholder="Şifre" required>
+            <button type="submit">Giriş Yap / Kaydol</button>
         </form>
     </div>
 
     <div id="chatSection" class="hidden">
         <h1>🕶️ DarkNet <small id="userNickname"></small></h1>
         <div id="chat"></div>
-        <div id="typingIndicator"></div>
         <div>
-            <div id="replyPreview" class="hidden"></div>
             <input type="text" id="messageInput" placeholder="Mesajınız...">
-            <input type="file" id="fileInput" multiple>
             <button onclick="sendMessage()">Gönder</button>
-            <button onclick="cancelReply()">İptal</button>
         </div>
     </div>
 
     <script>
-        // Kullanıcı bilgileri
-        let currentUser = {
-            id: '',
-            nickname: '',
-            color: ''
-        };
-        
-        let replyTo = null;
-        let typingTimer = null;
+        // Kullanıcı veritabanı (Şifreli)
+        const DB_NAME = "darknet_db";
+        const SECRET_KEY = "DARKNET_SECRET_KEY"; // Gerçek kullanımda daha kompleks bir anahtar kullanın
         
         // Rastgele renk oluştur
         function getRandomColor() {
@@ -107,195 +82,109 @@
             return colors[Math.floor(Math.random() * colors.length)];
         }
         
-        // Mesaj oluşturma
-        function createMessageElement(message) {
-            const msgElement = document.createElement('div');
-            msgElement.className = 'message' + (message.replyTo ? ' reply' : '');
-            msgElement.style.borderLeftColor = message.color;
+        // Veritabanı işlemleri
+        function getDatabase() {
+            const encryptedDB = localStorage.getItem(DB_NAME);
+            if (!encryptedDB) return { users: {}, messages: [] };
             
-            let content = `
-                <strong style="color: ${message.color}">${message.nickname}</strong>:
-            `;
-            
-            if (message.replyTo) {
-                content += `
-                    <div class="reply-info">
-                        Yanıt: ${message.replyTo.text || '(dosya)'}
-                    </div>
-                `;
-            }
-            
-            if (message.image) {
-                content += `
-                    <div>
-                        <img src="${message.image}" class="image-message">
-                    </div>
-                `;
-            }
-            
-            if (message.text) {
-                content += message.text;
-            }
-            
-            content += `
-                <small>${new Date(message.time).toLocaleTimeString()}</small>
-                <button onclick="setReply('${message.id}')" style="float:right">Yanıtla</button>
-            `;
-            
-            msgElement.innerHTML = content;
-            return msgElement;
-        }
-        
-        // Yanıt ayarla
-        function setReply(messageId) {
-            const messages = JSON.parse(localStorage.getItem('darknet_messages') || []);
-            const message = messages.find(m => m.id === messageId);
-            
-            if (message) {
-                replyTo = {
-                    id: message.id,
-                    text: message.text || (message.image ? '(dosya)' : '')
-                };
-                
-                const preview = document.getElementById('replyPreview');
-                preview.innerHTML = `Yanıt: ${replyTo.text}`;
-                preview.classList.remove('hidden');
+            try {
+                const bytes = CryptoJS.AES.decrypt(encryptedDB, SECRET_KEY);
+                return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+            } catch {
+                return { users: {}, messages: [] };
             }
         }
         
-        // Yanıtı iptal et
-        function cancelReply() {
-            replyTo = null;
-            document.getElementById('replyPreview').classList.add('hidden');
+        function saveDatabase(db) {
+            const encrypted = CryptoJS.AES.encrypt(JSON.stringify(db), SECRET_KEY).toString();
+            localStorage.setItem(DB_NAME, encrypted);
         }
         
-        // Mesaj gönderme
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const fileInput = document.getElementById('fileInput');
-            const message = input.value.trim();
-            const files = fileInput.files;
-            
-            if (!message && files.length === 0) return;
-            
-            let imageData = null;
-            
-            // Dosya yükleme
-            if (files.length > 0) {
-                const file = files[0];
-                if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                    alert('Dosya boyutu çok büyük (max 5MB)');
-                    return;
-                }
-                
-                imageData = await readFileAsDataURL(file);
-                fileInput.value = ''; // Input'u temizle
-            }
-            
-            // Mesaj objesi oluştur
-            const newMessage = {
-                id: Date.now().toString(),
-                userId: currentUser.id,
-                nickname: currentUser.nickname,
-                color: currentUser.color,
-                text: message,
-                image: imageData,
-                time: new Date().toISOString(),
-                replyTo: replyTo ? {
-                    id: replyTo.id,
-                    text: replyTo.text
-                } : null
-            };
-            
-            // Mesajları güncelle
-            const messages = JSON.parse(localStorage.getItem('darknet_messages') || [];
-            messages.push(newMessage);
-            localStorage.setItem('darknet_messages', JSON.stringify(messages));
-            
-            // UI'yı güncelle
-            input.value = '';
-            cancelReply();
-            displayMessages();
-        }
-        
-        // Dosyayı DataURL olarak okuma
-        function readFileAsDataURL(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.readAsDataURL(file);
-            });
-        }
-        
-        // Mesajları göster
-        function displayMessages() {
-            const messages = JSON.parse(localStorage.getItem('darknet_messages') || []);
-            const chatDiv = document.getElementById('chat');
-            
-            chatDiv.innerHTML = '';
-            messages.forEach(msg => {
-                chatDiv.appendChild(createMessageElement(msg));
-            });
-            
-            chatDiv.scrollTop = chatDiv.scrollHeight;
-        }
-        
-        // Yazma indikatörü
-        function setupTypingIndicator() {
-            const input = document.getElementById('messageInput');
-            const indicator = document.getElementById('typingIndicator');
-            
-            input.addEventListener('input', () => {
-                clearTimeout(typingTimer);
-                indicator.textContent = `${currentUser.nickname} yazıyor...`;
-                
-                typingTimer = setTimeout(() => {
-                    indicator.textContent = '';
-                }, 2000);
-            });
-        }
-        
-        // Kullanıcı girişi
+        // Kullanıcı giriş/kayıt
         function login() {
-            const nickname = document.getElementById('nickname').value.trim();
-            if (!nickname) return false;
+            const nickname = document.getElementById('nickname').value;
+            const password = document.getElementById('password').value;
             
-            currentUser = {
-                id: Date.now().toString(),
-                nickname: nickname,
-                color: getRandomColor()
-            };
+            const db = getDatabase();
+            const userId = CryptoJS.SHA256(nickname + password).toString();
+            
+            if (!db.users[userId]) {
+                // Yeni kullanıcı
+                db.users[userId] = {
+                    nickname: nickname,
+                    color: getRandomColor(),
+                    joined: new Date().toISOString()
+                };
+                saveDatabase(db);
+            }
             
             // Session başlat
-            sessionStorage.setItem('darknet_user', JSON.stringify(currentUser));
+            sessionStorage.setItem('darknet_user', JSON.stringify({
+                id: userId,
+                nickname: nickname,
+                color: db.users[userId].color
+            }));
             
             // Chat ekranını göster
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('chatSection').classList.remove('hidden');
             document.getElementById('userNickname').textContent = nickname;
             
-            // Mesajları yükle ve eventleri ayarla
-            displayMessages();
-            setupTypingIndicator();
-            
+            // Mesajları yükle
+            loadMessages();
             return false;
         }
         
-        // Oturum kontrolü
-        function checkSession() {
-            const user = sessionStorage.getItem('darknet_user');
-            if (user) {
-                currentUser = JSON.parse(user);
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('chatSection').classList.remove('hidden');
-                document.getElementById('userNickname').textContent = currentUser.nickname;
-                displayMessages();
-                setupTypingIndicator();
-            }
+        // Mesaj gönderme
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            const user = JSON.parse(sessionStorage.getItem('darknet_user'));
+            const db = getDatabase();
+            
+            db.messages.push({
+                id: CryptoJS.SHA256(Date.now().toString()).toString(),
+                userId: user.id,
+                nickname: user.nickname,
+                color: user.color,
+                text: message,
+                time: new Date().toISOString()
+            });
+            
+            saveDatabase(db);
+            input.value = '';
+            loadMessages();
         }
         
-        // Sayfa yüklendiğinde
-        checkSession();
+        // Mesajları yükle
+        function loadMessages() {
+            const db = getDatabase();
+            const chatDiv = document.getElementById('chat');
+            
+            chatDiv.innerHTML = db.messages.map(msg => `
+                <div class="message" style="border-color: ${msg.color}">
+                    <strong style="color: ${msg.color}">${msg.nickname}</strong>: 
+                    ${msg.text}
+                    <small>${new Date(msg.time).toLocaleTimeString()}</small>
+                </div>
+            `).join('');
+            
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+        
+        // Otomatik mesaj yenileme
+        setInterval(loadMessages, 3000);
+        
+        // Oturum kontrolü
+        if (sessionStorage.getItem('darknet_user')) {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('chatSection').classList.remove('hidden');
+            const user = JSON.parse(sessionStorage.getItem('darknet_user'));
+            document.getElementById('userNickname').textContent = user.nickname;
+            loadMessages();
+        }
     </script>
 </body>
 </html>
