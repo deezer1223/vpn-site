@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔒 DarkNet Underground</title>
+    <style>
+        :root {
+            --bg-dark: #0a0a0a;
+            --bg-light: #121212;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent: #00ff00;
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            height: 100vh;
+        }
+        .sidebar {
+            background-color: var(--bg-light);
+            border-right: 1px solid #333;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: var(--bg-light);
+        }
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid;
+        }
+        .user-nickname {
+            font-weight: bold;
+            text-shadow: 0 0 5px currentColor;
+        }
+        .message-time {
+            color: var(--text-secondary);
+            font-size: 0.8em;
+            margin-left: auto;
+        }
+        .message-content {
+            word-break: break-word;
+        }
+        .input-area {
+            padding: 15px;
+            border-top: 1px solid #333;
+            background-color: var(--bg-light);
+        }
+        #message-input {
+            width: 100%;
+            padding: 10px;
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+        }
+        .user-list-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #252525;
+        }
+        .user-list-item:hover {
+            background-color: #252525;
+            cursor: pointer;
+        }
+        .typing-indicator {
+            color: var(--accent);
+            font-style: italic;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h3>🟢 Çevrimiçi Kullanıcılar</h3>
+            <div id="users-list"></div>
+        </div>
+        
+        <div class="chat-area">
+            <div class="messages" id="messages">
+                <div class="typing-indicator" id="typing" style="display: none;"></div>
+            </div>
+            
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="Mesajınızı yazın... (Enter ile gönder)">
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const currentUser = {
+            id: "{{ session.user_id }}",
+            nickname: "{{ session.nickname }}",
+            avatar: "{{ session.avatar }}",
+            color: "{{ session.color }}"
+        };
+
+        // Mesaj gönderme
+        document.getElementById('message-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter' && e.target.value.trim()) {
+                socket.emit('send_message', {
+                    message: e.target.value,
+                    recipient_id: 'public'
+                });
+                e.target.value = '';
+            }
+        });
+
+        // Mesaj alma
+        socket.on('receive_message', (data) => {
+            const messagesDiv = document.getElementById('messages');
+            const typingIndicator = document.getElementById('typing');
+            
+            if(typingIndicator.style.display !== 'none') {
+                typingIndicator.style.display = 'none';
+            }
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message';
+            messageElement.innerHTML = `
+                <div class="message-header">
+                    <img src="/uploads/${data.sender.avatar}" 
+                         class="user-avatar" 
+                         style="border-color: ${data.sender.color}">
+                    <span class="user-nickname" style="color: ${data.sender.color}">
+                        ${data.sender.nickname}
+                    </span>
+                    <span class="message-time">${data.timestamp}</span>
+                </div>
+                <div class="message-content">${data.message}</div>
+            `;
+            
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+
+        // Çevrimiçi kullanıcı listesi
+        socket.on('update_users', (data) => {
+            const usersList = document.getElementById('users-list');
+            usersList.innerHTML = '';
+            
+            data.users.forEach(user => {
+                if(user.user_id !== currentUser.id) {
+                    const userElement = document.createElement('div');
+                    userElement.className = 'user-list-item';
+                    userElement.innerHTML = `
+                        <img src="/uploads/${user.avatar}" 
+                             class="user-avatar" 
+                             style="border-color: ${user.color}">
+                        <span style="color: ${user.color}">${user.nickname}</span>
+                    `;
+                    
+                    userElement.addEventListener('click', () => {
+                        // Özel mesajlaşma için
+                        alert(`${user.nickname} ile özel mesajlaşma başlatılıyor...`);
+                    });
+                    
+                    usersList.appendChild(userElement);
+                }
+            });
+        });
+
+        // Uptime Robot için canlılık kontrolü
+        setInterval(() => {
+            fetch('/health')
+                .then(response => console.log('Uptime check:', response.status))
+                .catch(err => console.error('Uptime error:', err));
+        }, 300000); // 5 dakikada bir
+    </script>
+</body>
+</html>
